@@ -89,82 +89,97 @@ CMD ["nginx", "-g", "daemon off;"]
 Create a `docker-compose.yml` file at the root of your project to define all services and configure Traefik:
 
 ```yaml
-version: '3.8'
-
 services:
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: frontend
-    environment:
-      - NODE_ENV=production
-    networks:
-      - web
-    labels:
-      - "traefik.http.routers.frontend.rule=Host(`y2o.com`)"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
-
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: backend
-    environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/dbname
-    networks:
-      - web
-    labels:
-      - "traefik.http.routers.backend.rule=Host(`y2o.com`) && PathPrefix(`/api`)"
-      - "traefik.http.services.backend.loadbalancer.server.port=8000"
-      - "traefik.http.routers.backend-docs.rule=Host(`y2o.com`) && PathPrefix(`/docs`)"
-      - "traefik.http.services.backend-docs.loadbalancer.server.port=8000"
-
-  db:
-    image: postgres:13
-    container_name: db
-    environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=dbname
-    networks:
-      - web
-
-  adminer:
-    image: adminer
-    container_name: adminer
-    ports:
-      - "8080:8080"
-    networks:
-      - web
-    labels:
-      - "traefik.http.routers.adminer.rule=Host(`db.y2o.com`)"
-      - "traefik.http.services.adminer.loadbalancer.server.port=8080"
 
   traefik:
-    image: traefik:v2.9
-    container_name: traefik
+    image: traefik:v2.5
+    env_file:
+      - .env
     command:
       - "--api.insecure=true"
+      - "--api.dashboard=true"
       - "--providers.docker=true"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.traefik.address=:8090"
       - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.email=your-email@domain.com"
+      - "--certificatesresolvers.myresolver.acme.email=ayinglar@gmail.com"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
       - "443:443"
-      - "8090:8080"
+      - "8090:8090"
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./letsencrypt:/letsencrypt"
-    networks:
-      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`proxy.${DOMAIN}`)"
+      - "traefik.http.routers.api.service=api@internal"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.services.api.loadbalancer.server.port=8090"
+      - "traefik.http.routers.api.tls.certresolver=myresolver"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      - "traefik.http.routers.www-to-non-www.rule=Host(`www.${DOMAIN}`)"
+      - "traefik.http.routers.www-to-non-www.entrypoints=websecure"
+      - "traefik.http.routers.www-to-non-www.tls.certresolver=myresolver"
+      - "traefik.http.middlewares.www-to-non-www.redirectregex.regex=^https://www\\.(.*)"
+      - "traefik.http.middlewares.www-to-non-www.redirectregex.replacement=https://$1"
+      - "traefik.http.middlewares.www-to-non-www.redirectregex.permanent=true"
+      - "traefik.http.routers.www-to-non-www.middlewares=www-to-non-www@docker"
 
-networks:
-  web:
-    external: false
+  frontend:
+    build: ./frontend
+    env_file:
+      - frontend/.env
+    ports:
+      - "3000:80"
+    labels:
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=myresolver"
+
+  backend:
+    build: ./backend
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    env_file:
+      - backend/.env
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`, `/docs`, `/redoc`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls.certresolver=myresolver"
+
+  db:
+    image: postgres:13
+    env_file:
+      - backend/.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  adminer:
+    image: adminer
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    labels:
+      - "traefik.http.routers.adminer.rule=Host(`db.${DOMAIN}`)"
+      - "traefik.http.routers.adminer.entrypoints=websecure"
+      - "traefik.http.routers.adminer.tls.certresolver=myresolver"
+
+volumes:
+  postgres_data:
 ```
 
 ### 4. Database Configuration
