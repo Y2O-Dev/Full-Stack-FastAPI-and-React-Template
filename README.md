@@ -51,38 +51,37 @@ Navigate to the `frontend` directory and create a Dockerfile:
 
 ```Dockerfile
 # frontend/Dockerfile
-FROM node:14
 
+# Stage 1: Build the React application
+FROM node:20 as build
+
+# Set the working directory
 WORKDIR /app
 
-COPY package*.json ./
+# Copy package.json and package-lock.json to leverage Docker cache
+COPY package.json package-lock.json ./
+
+# Install dependencies
 RUN npm install
 
-COPY . .
+# Copy the rest of the application code
+COPY . /app
 
+# Build the application
 RUN npm run build
 
+# Stage 2: Serve the static files with Nginx
+FROM nginx:alpine
+
+# Copy the build output to the Nginx html directory
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Expose the port Nginx will serve on
 EXPOSE 80
-CMD ["npx", "serve", "build"]
-```
 
-**Backend Dockerfile**
+# Command to run Nginx
+CMD ["nginx", "-g", "daemon off;"]
 
-Navigate to the `backend` directory and create a Dockerfile:
-
-```Dockerfile
-# backend/Dockerfile
-FROM python:3.8
-
-WORKDIR /app
-
-COPY pyproject.toml poetry.lock ./
-RUN pip install poetry
-RUN poetry install --no-root
-
-COPY . .
-
-CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 ### 3. Configure Traefik
