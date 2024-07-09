@@ -188,7 +188,7 @@ Ensure your PostgreSQL database is properly set up and configured. Update the `D
 
 ### 5. Adminer Setup
 
-Adminer is configured to run on port 8080 and can be accessed via the subdomain `db.y2o.com`. This setup is defined in the `docker-compose.yml` file.
+Adminer is configured to run on port 8080 and can be accessed via the subdomain `db.y2o.chikenkiller.com`. This setup is defined in the `docker-compose.yml` file.
 
 ### 6. Proxy Manager Setup
 
@@ -291,54 +291,3 @@ Add Poetry to your PATH (if not automatically added):
    Ensure you update the necessary configurations in the `.env` file, particularly the database configuration.
 
 By following these instructions, you should be able to set up and deploy the full-stack application successfully. For more detailed instructions, refer to the README files in the frontend and backend directories.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Full-Stack FastAPI and React Template
-
-Welcome to the Full-Stack FastAPI and React template repository. This repository serves as a demo application for interns, showcasing how to set up and run a full-stack application with a FastAPI backend and a ReactJS frontend using ChakraUI.
-
-## Project Structure
-
-The repository is organized into two main directories:
-
-- **frontend**: Contains the ReactJS application.
-- **backend**: Contains the FastAPI application and PostgreSQL database integration.
-
-Each directory has its own README file with detailed instructions specific to that part of the application.
-
-## Getting Started
-
-To get started with this template, please follow the instructions in the respective directories:
-
-- [Frontend README](./frontend/README.md)
-- [Backend README](./backend/README.md)
-
