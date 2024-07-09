@@ -29,13 +29,13 @@ Each directory has its own README file with detailed instructions specific to th
    - Configure the application to use a PostgreSQL database. Ensure the database is properly set up and connected.
 
 5. **Adminer Setup**:
-   - Configure Adminer to run on port 8080. Ensure Adminer is accessible via the subdomain `db.y2o.com` and is properly connected to the PostgreSQL database.
+   - Configure Adminer to run on port 8080. Ensure Adminer is accessible via the subdomain `db.y2o.chickenkiller.com` and is properly connected to the PostgreSQL database.
 
 6. **Proxy Manager Setup**:
-   - Configure the proxy manager to run on port 8090. Ensure the proxy manager is accessible via the subdomain `proxy.y2o.com`.
+   - Configure the proxy manager to run on port 8090. Ensure the proxy manager is accessible via the subdomain `proxy.y2o.chickenkiller.com`.
 
 7. **Cloud Deployment**:
-   - Deploy your Dockerized application to an AWS EC2 instance. Set up a domain for your application (e.g., `y2o.com`). Configure HTTP to redirect to HTTPS. Configure www to redirect to non-www.
+   - Deploy your Dockerized application to an AWS EC2 instance. Set up a domain for your application (e.g., `y2o.chickenkiller.com`). Configure HTTP to redirect to HTTPS. Configure www to redirect to non-www.
 
 ## Getting Started
 
@@ -182,13 +182,56 @@ volumes:
   postgres_data:
 ```
 
-### 4. Database Configuration
+### 4. FastAPI Backend Dockerfile
 
-Ensure your PostgreSQL database is properly set up and configured. Update the `DATABASE_URL` in your backend Dockerfile and `.env` file.
+```Dockerfile
 
+FROM python:3.10-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        python3-dev \
+        postgresql-client \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 -
+ENV PATH="/root/.local/bin:$PATH"
+
+# Copy only the pyproject.toml and poetry.lock files to the container and install dependencies
+COPY pyproject.toml poetry.lock* /app
+
+# Install dependencies
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-dev --no-interaction --no-ansi
+
+# Copy the rest of the application
+COPY . .
+
+# Copy and run prestart.sh
+COPY ./prestart.sh /app/prestart.sh
+RUN chmod +x /app/prestart.sh
+
+# Expose port
+EXPOSE 8000
+
+# Set the PYTHONPATH
+ENV PYTHONPATH=/app
+
+# Run prestart script before starting the app
+CMD ["bash", "-c", "poetry run bash ./prestart.sh && poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"]
+
+```
 ### 5. Adminer Setup
 
-Adminer is configured to run on port 8080 and can be accessed via the subdomain `db.y2o.chikenkiller.com`. This setup is defined in the `docker-compose.yml` file.
+Adminer is configured to run on port 8080 and can be accessed via the subdomain `db.y2o.chickenkiller.chikenkiller.com`. This setup is defined in the `docker-compose.yml` file.
 
 ### 6. Proxy Manager Setup
 
@@ -214,78 +257,6 @@ Deploy your Dockerized application to an AWS EC2 instance:
    - Point your domain or subdomain to your EC2 instance's IP address.
    - Configure Traefik to handle HTTP to HTTPS redirection and non-www to www redirection.
 
-## Detailed Instructions for Frontend and Backend
-
-### Frontend Setup
-
-This directory contains the frontend of the application built with ReactJS and ChakraUI.
-
-#### Prerequisites
-
-- Node.js (version 14.x or higher)
-- npm (version 6.x or higher)
-
-#### Setup Instructions
-
-1. **Navigate to the frontend directory**:
-    ```sh
-    cd frontend
-    ```
-
-2. **Install dependencies**:
-    ```sh
-    npm install
-    ```
-
-3. **Run the development server**:
-    ```sh
-    npm run dev
-    ```
-
-4. **Configure API URL**:
-   Ensure the API URL is correctly set in the `.env` file.
-
-### Backend Setup
-
-This directory contains the backend of the application built with FastAPI and a PostgreSQL database.
-
-#### Prerequisites
-
-- Python 3.8 or higher
-- Poetry (for dependency management)
-- PostgreSQL (ensure the database server is running)
-
-#### Installing Poetry
-
-To install Poetry, follow these steps:
-
-```sh
-curl -sSL https://install.python-poetry.org | python3 -
-```
-
-Add Poetry to your PATH (if not automatically added):
-
-#### Setup Instructions
-
-1. **Navigate to the backend directory**:
-    ```sh
-    cd backend
-    ```
-
-2. **Install dependencies using Poetry**:
-    ```sh
-    poetry install
-    ```
-
-3. **Set up the database with the necessary tables**:
-    ```sh
-    poetry run bash ./prestart.sh
-    ```
-
-4. **Run the backend server**:
-    ```sh
-    poetry run uvicorn app.main:app --reload
-    ```
 
 5. **Update configuration**:
    Ensure you update the necessary configurations in the `.env` file, particularly the database configuration.
